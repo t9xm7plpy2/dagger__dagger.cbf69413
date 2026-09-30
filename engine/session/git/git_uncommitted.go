@@ -71,7 +71,7 @@ func (s GitAttachable) PackUncommitted(req *PackUncommittedRequest, srv Git_Pack
 		return sendErr(INVALID_REQUEST, "expected HEAD is required")
 	}
 	if state.headSHA != expectedHead {
-		return sendErr(HEAD_MISMATCH, fmt.Sprintf("checkout HEAD moved from %s to %s", state.headSHA, expectedHead))
+		return sendErr(HEAD_MISMATCH, fmt.Sprintf("checkout HEAD moved from %s to %s", expectedHead, state.headSHA))
 	}
 
 	trackedOut, err := runHostGitBytes(ctx, checkout, nil, nil,
@@ -90,6 +90,7 @@ func (s GitAttachable) PackUncommitted(req *PackUncommittedRequest, srv Git_Pack
 	paths := map[string]struct{}{}
 	for _, p := range trackedPaths {
 		tracked[p] = struct{}{}
+		paths[p] = struct{}{}
 	}
 	var nested []string
 	for _, p := range splitNullPaths(untrackedOut) {
@@ -208,7 +209,7 @@ func (s GitAttachable) PackUncommitted(req *PackUncommittedRequest, srv Git_Pack
 		n, readErr := patch.Read(buf)
 		if n > 0 {
 			if err := srv.Send(&PackUncommittedResponse{
-				Msg: &PackUncommittedResponse_Chunk{Chunk: buf},
+				Msg: &PackUncommittedResponse_Chunk{Chunk: buf[:n]},
 			}); err != nil {
 				return fmt.Errorf("send uncommitted patch chunk: %w", err)
 			}
