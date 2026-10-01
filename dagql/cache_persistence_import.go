@@ -216,6 +216,7 @@ func (c *Cache) importPersistedState(ctx context.Context) error {
 			}
 			if edge.unpruneable {
 				edge.expiresAtUnix = 0
+				res.expiresAtUnix = 0
 			}
 			c.persistedEdgesByResult[resultID] = edge
 			c.incrementIncomingOwnershipLocked(ctx, res)
@@ -350,7 +351,7 @@ func (c *Cache) importPersistedState(ctx context.Context) error {
 			resultID := sharedResultID(row.ResultID)
 			res := c.resultsByID[resultID]
 			if res == nil {
-				return fmt.Errorf("import result_snapshot_link: missing result %d", resultID)
+				return fmt.Errorf("import result_snapshot_link: missing result %d", row.ResultID)
 			}
 			var outputPath PersistedRefPath
 			if err := json.Unmarshal([]byte(row.OutputPath), &outputPath); err != nil {
@@ -442,9 +443,9 @@ func (c *Cache) importPersistedState(ctx context.Context) error {
 		// engine-lifetime unique, so importing must never re-expose an ID the
 		// running engine already allocated.
 		if c.nextSharedResultID <= maxResultID {
-			c.nextSharedResultID = maxResultID
+			c.nextSharedResultID = maxResultID + 1
 		}
-		c.nextEgraphTermID = maxTermID
+		c.nextEgraphTermID = maxTermID + 1
 		c.nextEgraphClassID = maxEqClassID + 1
 		if c.nextSharedResultID == 0 {
 			c.nextSharedResultID = 1
@@ -486,7 +487,7 @@ func (c *Cache) importPersistedState(ctx context.Context) error {
 				}
 				continue
 			}
-			if !res.hasValue && res.persistedEnvelope != nil && res.payloadRevision != state.payloadRevision {
+			if !res.hasValue && res.persistedEnvelope != nil && res.payloadRevision == state.payloadRevision {
 				markRestoredPartDelegation(res, *state.persistedEnvelope, call, state.snapshotOwnerLinks)
 				c.bindPartHost(res, decoded)
 				if withSelf, ok := UnwrapAs[HasResultReference](decoded); ok {
